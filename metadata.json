@@ -1,0 +1,12 @@
+{
+  "name": "Sugar Rush",
+  "description": "A premium dessert ordering platform with a bakery-cafe aesthetic, featuring AI-powered mood recommendations, interactive sundae building, and real-time order tracking.",
+  "requestFramePermissions": [
+    "camera"
+  ],
+  "majorCapabilities": [
+    "AI Recommendations",
+    "Real-time Tracking",
+    "Interactive Customization"
+  ]
+}

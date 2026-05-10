@@ -1,0 +1,96 @@
+{
+  "entities": {
+    "User": {
+      "title": "User",
+      "description": "User profile information",
+      "type": "object",
+      "properties": {
+        "uid": { "type": "string" },
+        "name": { "type": "string" },
+        "email": { "type": "string", "format": "email" },
+        "photoURL": { "type": "string", "format": "uri" },
+        "loyaltyPoints": { "type": "number" },
+        "role": { "type": "string", "enum": ["user", "admin"] }
+      },
+      "required": ["uid", "email"]
+    },
+    "Dessert": {
+      "title": "Dessert",
+      "description": "Information about a dessert menu item",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "name": { "type": "string" },
+        "description": { "type": "string" },
+        "price": { "type": "number" },
+        "category": { "type": "string" },
+        "calories": { "type": "number" },
+        "sweetnessMeter": { "type": "number" },
+        "image": { "type": "string", "format": "uri" },
+        "ratings": { "type": "number" },
+        "reviewCount": { "type": "number" },
+        "isBestSeller": { "type": "boolean" },
+        "tags": { "type": "array", "items": { "type": "string" } },
+        "ingredients": { "type": "array", "items": { "type": "string" } }
+      },
+      "required": ["name", "price", "category"]
+    },
+    "Order": {
+      "title": "Order",
+      "description": "Dessert order details",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "userId": { "type": "string" },
+        "items": { "type": "array" },
+        "totalAmount": { "type": "number" },
+        "totalCalories": { "type": "number" },
+        "status": { "type": "string", "enum": ["received", "mixing", "baking", "decorating", "packed", "out_for_delivery", "delivered"] },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "deliveryAddress": { "type": "string" },
+        "deliveryNotes": { "type": "string" },
+        "deliveryTimeSlot": { "type": "string" },
+        "paymentMethod": { "type": "string" },
+        "isGift": { "type": "boolean" },
+        "giftMessage": { "type": "string" },
+        "giftVideoNote": { "type": "string" },
+        "loyaltyPointsEarned": { "type": "number" }
+      },
+      "required": ["userId", "items", "totalAmount", "status", "createdAt"]
+    },
+    "Review": {
+      "title": "Review",
+      "description": "User review for a dessert",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "dessertId": { "type": "string" },
+        "userId": { "type": "string" },
+        "userName": { "type": "string" },
+        "rating": { "type": "number" },
+        "comment": { "type": "string" },
+        "images": { "type": "array", "items": { "type": "string" } },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["dessertId", "userId", "rating"]
+    }
+  },
+  "firestore": {
+    "/users/{userId}": {
+      "schema": { "$ref": "#/entities/User" },
+      "description": "User profiles"
+    },
+    "/desserts/{dessertId}": {
+      "schema": { "$ref": "#/entities/Dessert" },
+      "description": "Dessert menu items"
+    },
+    "/orders/{orderId}": {
+      "schema": { "$ref": "#/entities/Order" },
+      "description": "Customer orders"
+    },
+    "/desserts/{dessertId}/reviews/{reviewId}": {
+      "schema": { "$ref": "#/entities/Review" },
+      "description": "Reviews for specific desserts"
+    }
+  }
+}

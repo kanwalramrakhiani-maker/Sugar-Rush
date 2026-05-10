@@ -1,0 +1,131 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+    
+    // -------------------------------------------------------------------------
+    // 0. GLOBAL SAFETY NET & HELPERS
+    // -------------------------------------------------------------------------
+    
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function isEmailVerified() {
+      return isSignedIn() && request.auth.token.email_verified == true;
+    }
+
+    function isAdmin() {
+      // For this project, we check if the user is in the admins collection
+      return isSignedIn() && exists(/databases/$(database)/documents/admins/$(request.auth.uid));
+    }
+
+    function isOwner(userId) {
+      return isSignedIn() && request.auth.uid == userId;
+    }
+
+    function isValidId(id) {
+      return id is string && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$');
+    }
+
+    function incoming() {
+      return request.resource.data;
+    }
+
+    function existing() {
+      return resource.data;
+    }
+
+    // -------------------------------------------------------------------------
+    // 1. USERS COLLECTION
+    // -------------------------------------------------------------------------
+
+    match /users/{userId} {
+      function isValidUser(data) {
+        return data.uid == request.auth.uid 
+          && data.email == request.auth.token.email
+          && data.name is string && data.name.size() <= 100
+          && (data.photoURL == null || (data.photoURL is string && data.photoURL.size() <= 500))
+          && data.loyaltyPoints is number && data.loyaltyPoints >= 0
+          && data.role in ['user', 'admin'];
+      }
+
+      allow get: if isOwner(userId) || isAdmin();
+      allow list: if isAdmin();
+      
+      allow create: if isOwner(userId) && isEmailVerified() 
+        && isValidUser(incoming())
+        && incoming().role == 'user' // Users cannot self-promote
+        && incoming().loyaltyPoints == 0; // New users start at 0
+
+      allow update: if (isOwner(userId) || isAdmin()) && isValidUser(incoming()) && (
+        // User updating profile
+        (isOwner(userId) && incoming().diff(existing()).affectedKeys().hasOnly(['name', 'photoURL'])) ||
+        // Admin updating everything
+        isAdmin() ||
+        // System incrementing loyalty points (demonstration)
+        (incoming().diff(existing()).affectedKeys().hasOnly(['loyaltyPoints']))
+      );
+    }
+
+    // -------------------------------------------------------------------------
+    // 2. DESSERTS COLLECTION
+    // -------------------------------------------------------------------------
+
+    match /desserts/{dessertId} {
+      function isValidDessert(data) {
+        return data.name is string && data.name.size() <= 100
+          && data.description is string && data.description.size() <= 1000
+          && data.price is number && data.price > 0
+          && data.category is string
+          && data.calories is number
+          && data.sweetnessMeter is number && data.sweetnessMeter >= 1 && data.sweetnessMeter <= 5
+          && data.image is string
+          && data.ratings is number
+          && data.reviewCount is number;
+      }
+
+      allow read: if true; // Public menu
+      allow write: if isAdmin(); // Only admins can manage menu
+    }
+
+    // -------------------------------------------------------------------------
+    // 3. ORDERS COLLECTION
+    // -------------------------------------------------------------------------
+
+    match /orders/{orderId} {
+      function isValidOrder(data) {
+        return data.userId == request.auth.uid
+          && data.items is list && data.items.size() > 0
+          && data.totalAmount is number && data.totalAmount >= 0
+          && data.status in ['received', 'mixing', 'baking', 'decorating', 'packed', 'out_for_delivery', 'delivered']
+          && data.createdAt == request.time;
+      }
+
+      allow get: if isSignedIn() && (isOwner(existing().userId) || isAdmin());
+      allow list: if isSignedIn() && (resource.data.userId == request.auth.uid || isAdmin());
+
+      allow create: if isSignedIn() && isEmailVerified() && isValidOrder(incoming())
+        && incoming().status == 'received';
+
+      allow update: if isSignedIn() && (
+        // User cancelling (if allowed) or updating some fields? Usually users don't update orders.
+        // Admin updating status
+        (isAdmin() && incoming().diff(existing()).affectedKeys().hasOnly(['status']))
+      );
+    }
+
+    // -------------------------------------------------------------------------
+    // 4. ADMINS COLLECTION
+    // -------------------------------------------------------------------------
+    
+    match /admins/{userId} {
+      allow read: if isSignedIn();
+      allow write: if false; // Only manageable via console or service account
+    }
+  }
+}
